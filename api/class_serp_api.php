@@ -2,7 +2,7 @@
 class class_serp_api
 {
 
-    private $url  = 'https://online.seranking.com/structure/clientapi/v2.php';
+    private $url  = 'https://api2.seranking.com/';
     public $token = '';
 
     public function __construct($login, $pass)
