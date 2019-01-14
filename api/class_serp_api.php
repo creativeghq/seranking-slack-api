@@ -61,6 +61,40 @@ class class_serp_api
 
     }
 
+    public function getAnalytics($siteId, $site)
+    {
+        $method = 'analytics';
+        $response = file_get_contents($this->url.'/analytics/'.$siteId.'/'.$site);
+        return $response;
+    }   
+
+    public function getBacklinks($siteId)
+    {
+        $method = 'backlinks';
+        $response = file_get_contents($this->url.'/backlinks/'.$siteId);
+        return $response;
+    }
+
+
+    public function getCompetitors($siteId)
+    {
+        $method = 'competitors';
+        $response = file_get_contents($this->url.'/competitors/'.$siteId);
+        return $response;   
+    }
+
+    public function competitorKeywordPosition($competitorId)
+    {
+        $dateStart = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
+        $dateEnd   = date('Y-m-d');
+        $params    = array('dateStart' => $dateStart, 'dateEnd' => $dateEnd, 'siteid' => $siteId, 'token' => $this->token);
+        $params    = http_build_query($params);
+        $method = 'competitors';
+        $response = file_get_contents($this->url.'/competitors/positions?'.$params);
+        return $response;
+    }
+
+
     public function postToSlack($hook_url, $message, $channel, $username = '')
     {
         $array = array("text" => $message, 'channel' => $channel, 'username' => $username);
