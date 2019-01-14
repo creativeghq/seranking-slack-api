@@ -2,12 +2,12 @@
 class class_serp_api
 {
 
-    private $url  = 'https://api2.seranking.com/';
+    private $url = 'https://api2.seranking.com/';
     public $token = '';
 
     public function __construct($login, $pass)
     {
-        $array    = array('login' => $login, 'pass' => md5($pass));
+        $array = array('login' => $login, 'pass' => md5($pass));
         $response = $this->sendRequest('login', $array);
 
         if (isset($response['token']) && $response['token']) {
@@ -27,9 +27,9 @@ class class_serp_api
 
     public function getSearchEngines()
     {
-        $method   = 'searchEngines';
-        $params   = array('token' => $this->token);
-        $params   = http_build_query($params);
+        $method = 'searchEngines';
+        $params = array('token' => $this->token);
+        $params = http_build_query($params);
         $response = file_get_contents($this->url . '?method=' . $method . '&' . $params);
         // print_r($response);die;
         return $response;
@@ -39,11 +39,11 @@ class class_serp_api
     public function getSiteStats($siteId)
     {
         $dateStart = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
-        $dateEnd   = date('Y-m-d');
-        $params    = array('dateStart' => $dateStart, 'dateEnd' => $dateEnd, 'siteid' => $siteId, 'token' => $this->token);
-        $params    = http_build_query($params);
-        $method    = 'stat';
-        $response  = file_get_contents($this->url . '?method=' . $method . '&' . $params);
+        $dateEnd = date('Y-m-d');
+        $params = array('dateStart' => $dateStart, 'dateEnd' => $dateEnd, 'siteid' => $siteId, 'token' => $this->token);
+        $params = http_build_query($params);
+        $method = 'stat';
+        $response = file_get_contents($this->url . '?method=' . $method . '&' . $params);
         return $response;
     }
 
@@ -64,36 +64,32 @@ class class_serp_api
     public function getAnalytics($siteId, $site)
     {
         $method = 'analytics';
-        $response = file_get_contents($this->url.'/analytics/'.$siteId.'/'.$site);
-        return $response;
-    }   
-
-    public function getBacklinks($siteId)
-    {
-        $method = 'backlinks';
-        $response = file_get_contents($this->url.'/backlinks/'.$siteId);
+        $response = file_get_contents($this->url . '/analytics/' . $siteId . '/' . $site);
         return $response;
     }
 
+    public function getBacklinks($siteId)
+    {
+        $response = file_get_contents($this->url . '/backlinks/' . $siteId);
+        return $response;
+    }
 
     public function getCompetitors($siteId)
     {
-        $method = 'competitors';
-        $response = file_get_contents($this->url.'/competitors/'.$siteId);
-        return $response;   
+        $response = file_get_contents($this->url . '/competitors/' . $siteId);
+        return $response;
     }
 
     public function competitorKeywordPosition($competitorId)
     {
         $dateStart = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
-        $dateEnd   = date('Y-m-d');
-        $params    = array('dateStart' => $dateStart, 'dateEnd' => $dateEnd, 'siteid' => $siteId, 'token' => $this->token);
-        $params    = http_build_query($params);
+        $dateEnd = date('Y-m-d');
+        $params = array('dateStart' => $dateStart, 'dateEnd' => $dateEnd, 'siteid' => $siteId, 'token' => $this->token);
+        $params = http_build_query($params);
         $method = 'competitors';
-        $response = file_get_contents($this->url.'/competitors/positions?'.$params);
+        $response = file_get_contents($this->url . '/competitors/positions?' . $params);
         return $response;
     }
-
 
     public function postToSlack($hook_url, $message, $channel, $username = '')
     {
@@ -101,8 +97,8 @@ class class_serp_api
 
         $data = wp_remote_post($hook_url, array(
             'headers' => array('Content-Type' => 'application/json; charset=utf-8'),
-            'body'    => json_encode($array),
-            'method'  => 'POST',
+            'body' => json_encode($array),
+            'method' => 'POST',
         ));
     }
 
