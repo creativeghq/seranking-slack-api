@@ -3,7 +3,7 @@
 Plugin Name: SERanking Slack Notifications
 Plugin URI: https://seranking.com
 Description: Get a notification on your Slack daily, for your SERP Rank upgrades
-Version: 1.0.0
+Version: 1.0.1
 Author: Basilis Kanonidis
 Author URI: https://creativeg.gr
 Requires at least: 3.9.1
@@ -26,10 +26,9 @@ class Serp_SlackNotification
 
     public function post_to_slack()
     {
-        $serp_username = wp_get_page_field_value('serp-slack-settings', 'serp_username');
-        $serp_password = wp_get_page_field_value('serp-slack-settings', 'serp_password');
-        $objSerp = new class_serp_api($serp_username, $serp_password);
+        $objSerp = new class_serp_api();
         $sites = $objSerp->getAllSites();
+        $sites = json_decode($sites, true);
 
         //getting list of search engines
         $searchEngines = file_get_contents(plugin_dir_path(__FILE__) . 'api/searchengines.json');
@@ -38,11 +37,10 @@ class Serp_SlackNotification
         foreach ($searchEngines as $engines) {
             $engines_array[$engines['id']] = $engines['name'];
         }
-
         $siteId = $objSerp->getSiteId($sites);
         if ($siteId) {
-
             $siteStats = $objSerp->getSiteStats($siteId);
+            $keywordList = $objSerp->getKeywordList($siteId);
             $siteStats = json_decode($siteStats, true);
 
             $count = 0;
@@ -55,16 +53,16 @@ class Serp_SlackNotification
 
                     if ($total_positions > 0 && $keyword['positions'][$total_positions - 1]['change'] < 0) {
 
-                        if (array_key_exists($stats['seID'], $engines_array)) {
-                            $searchEngine = $engines_array[$stats['seID']];
+                        if (array_key_exists($stats['id'], $engines_array)) {
+                            $searchEngine = $engines_array[$stats['id']];
                         }
                         $position = $keyword['positions'][$total_positions - 1]['pos'];
 
-                        $arry['left'][$searchEngine]['p_' . $position][$count]['seid'] = $stats['seID'];
+                        $arry['left'][$searchEngine]['p_' . $position][$count]['seid'] = $stats['id'];
                         $arry['left'][$searchEngine]['p_' . $position][$count]['keyword_id'] = $keyword['id'];
                         $arry['left'][$searchEngine]['p_' . $position][$count]['position'] = $keyword['positions'][$total_positions - 1]['pos'];
                         $arry['left'][$searchEngine]['p_' . $position][$count]['change'] = $keyword['positions'][$total_positions - 1]['change'];
-                        $arry['left'][$searchEngine]['p_' . $position][$count]['keyword_name'] = $keyword['name'];
+                        $arry['left'][$searchEngine]['p_' . $position][$count]['keyword_name'] = $keywordList[$keyword['id']];
 
                         $arry['left'][$searchEngine]['p_' . $position][$count]['previous_date'] = $keyword['positions'][$total_positions - 2]['date'];
                         $arry['left'][$searchEngine]['p_' . $position][$count]['date'] = $keyword['positions'][$total_positions - 1]['date'];
@@ -73,16 +71,16 @@ class Serp_SlackNotification
                         $count++;
                     }
                     if ($total_positions > 0 && $keyword['positions'][$total_positions - 1]['change'] > 0) {
-                        if (array_key_exists($stats['seID'], $engines_array)) {
-                            $searchEngine = $engines_array[$stats['seID']];
+                        if (array_key_exists($stats['id'], $engines_array)) {
+                            $searchEngine = $engines_array[$stats['id']];
                         }
                         $position = $keyword['positions'][$total_positions - 1]['pos'];
 
-                        $arry['entered'][$searchEngine]['p_' . $position][$count]['seid'] = $stats['seID'];
+                        $arry['entered'][$searchEngine]['p_' . $position][$count]['seid'] = $stats['id'];
                         $arry['entered'][$searchEngine]['p_' . $position][$count]['keyword_id'] = $keyword['id'];
                         $arry['entered'][$searchEngine]['p_' . $position][$count]['position'] = $keyword['positions'][$total_positions - 1]['pos'];
                         $arry['entered'][$searchEngine]['p_' . $position][$count]['change'] = $keyword['positions'][$total_positions - 1]['change'];
-                        $arry['entered'][$searchEngine]['p_' . $position][$count]['keyword_name'] = $keyword['name'];
+                        $arry['entered'][$searchEngine]['p_' . $position][$count]['keyword_name'] = $keywordList[$keyword['id']];
 
                         $arry['entered'][$searchEngine]['p_' . $position][$count]['previous_date'] = $keyword['positions'][$total_positions - 2]['date'];
                         $arry['entered'][$searchEngine]['p_' . $position][$count]['date'] = $keyword['positions'][$total_positions - 1]['date'];
@@ -132,12 +130,15 @@ class Serp_SlackNotification
                 }
                 $objSerp->postToSlack($hook_url, $text, $slack_channel, $slack_username);
             }
-            // post backlinks to slack
-            $this->getBacklinks($siteId);
-            // post competitors to slack
-            $this->getCompetitors($siteId);
+
             // post analytics to slack
             $this->getAnalytics($siteId);
+
+            // post backlinks to slack
+            $this->getBacklinks($siteId);
+
+            // post competitors to slack
+            $this->getCompetitors($siteId);
         }
 
     }
@@ -151,17 +152,22 @@ class Serp_SlackNotification
 
         $objSerp = new class_serp_api($serp_username, $serp_password);
         $backlinks = $objSerp->getBacklinks($siteId);
-        if ($backlinks) {
-            $backlinks = json_decode($backlinks, true);
-            $text = "* Backlinks for the site *\n";
-            foreach ($backlinks as $backlink) {
-                $text .= "* From:" . $backlink['from_url'] . "* \n";
-                $text .= "* Domain :" . $backlink['domain'] . "* \n";
-                $text .= "* Anchor :" . $backlink['anchor'] . "* \n";
-                $text .= "* FB likes :" . $backlink['fb_likes'] . "* \n";
-                $text .= "* Date Added :" . $backlink['date_added'] . "* \n";
-                $text .= "* Date Placement :" . $backlink['date_placement'] . "* \n";
-                $text .= "\n";
+        $backlinks = json_decode($backlinks, true);
+        $text = "";
+        if (!isset($backlinks['message'])) {
+            $text .= "*Backlinks for the site*\n";
+            if ($backlinks) {
+                foreach ($backlinks as $backlink) {
+                    $text .= "*From:" . $backlink['from_url'] . "*\n";
+                    $text .= "*Domain :" . $backlink['domain'] . "*\n";
+                    $text .= "*Anchor :" . $backlink['anchor'] . "*\n";
+                    $text .= "*FB likes :" . $backlink['fb_likes'] . "*\n";
+                    $text .= "*Date Added :" . $backlink['date_added'] . "*\n";
+                    $text .= "*Date Placement :" . $backlink['date_placement'] . "*\n";
+                    $text .= "\n";
+                }
+            } else {
+                $text .= " Not available";
             }
             $objSerp->postToSlack($hook_url, $text, $slack_channel, $slack_username);
         }
@@ -177,14 +183,23 @@ class Serp_SlackNotification
 
         $objSerp = new class_serp_api($serp_username, $serp_password);
         $competitors = $objSerp->getCompetitors($siteId);
-        if ($competitors) {
-            $competitors = json_decode($competitors, true);
-            $text = "* Competitors for site *\n";
-            foreach ($competitors as $competitor) {
-                $text .= "*" . $competitor['url'] . "*\n";
-
+        $competitors = json_decode($competitors, true);
+        $text = "";
+        if (!isset($competitors['message'])) {
+            $text .= " *Competitors for site*\n";
+            if ($competitors) {
+                $count = 1;
+                foreach ($competitors as $competitor) {
+                    $text .= "*" . $count . ". " . $competitor['url'] . " *\n";
+                    $count++;
+                }
+            } else {
+                $text .= " Not available";
             }
+
         }
+
+        $objSerp->postToSlack($hook_url, $text, $slack_channel, $slack_username);
 
     }
 
@@ -198,26 +213,28 @@ class Serp_SlackNotification
 
         $objSerp = new class_serp_api($serp_username, $serp_password);
         $analytics = $objSerp->getAnalytics($siteId, 'google');
+        $analytics = json_decode($analytics, true);
         $text = "";
-        if ($analytics) {
-            $analytics = json_decode($analytics, true);
-            $text = "* Analytics from google *\n";
-            $text .= "* Query:" . $analytics['query'] . "* \n";
-            $text .= "* Impressions :" . $analytics['impressions'] . "* \n";
-            $text .= "* Clicks :" . $analytics['clicks'] . "* \n";
-            $text .= "* Ctr :" . $analytics['ctr'] . "* \n";
-            $text .= "* Avg :" . $analytics['avg'] . "* \n";
+        if (!isset($analytics['message'])) {
+
+            $text .= "*Analytics from google*\n";
+            $text .= "*Query:" . $analytics['query'] . "*\n";
+            $text .= "*Impressions :" . $analytics['impressions'] . "*\n";
+            $text .= "*Clicks :" . $analytics['clicks'] . "*\n";
+            $text .= "*Ctr :" . $analytics['ctr'] . "*\n";
+            $text .= "*Avg :" . $analytics['avg'] . "*\n";
             $text .= "\n";
         }
         $analytics = $objSerp->getAnalytics($siteId, 'yandex');
-        if ($analytics) {
+        $analytics = json_decode($analytics, true);
+        if (!isset($analytics['message'])) {
             $analytics = json_decode($analytics, true);
-            $text = "* Analytics from Yandex *\n";
-            $text .= "* Query:" . $analytics['query'] . "* \n";
-            $text .= "* Impressions :" . $analytics['impressions'] . "* \n";
-            $text .= "* Clicks :" . $analytics['clicks'] . "* \n";
-            $text .= "* Ctr :" . $analytics['ctr'] . "* \n";
-            $text .= "* Avg :" . $analytics['avg'] . "* \n";
+            $text .= "*Analytics from Yandex*\n";
+            $text .= "*Query:" . $analytics['query'] . "*\n";
+            $text .= "*Impressions :" . $analytics['impressions'] . "*\n";
+            $text .= "*Clicks :" . $analytics['clicks'] . "*\n";
+            $text .= "*Ctr :" . $analytics['ctr'] . "*\n";
+            $text .= "*Avg :" . $analytics['avg'] . "*\n";
             $text .= "\n";
         }
         $objSerp->postToSlack($hook_url, $text, $slack_channel, $slack_username);
@@ -253,24 +270,10 @@ class Serp_SlackNotification
         // creates a text field
         $page_with_tabs->add_field([
             'type' => 'text',
-            'id' => 'serp_username',
-            'label' => 'Serp ranking username',
-            'desc' => '',
-            'props' => [
-                // optional tag properties
-                'placeholder' => '',
-            ],
-        ]);
-
-        $page_with_tabs->add_field([
-            'type' => 'text',
-            'id' => 'serp_password',
-            'label' => 'Serp ranking password',
-            'desc' => '',
-            'props' => [
-                // optional tag properties
-                'placeholder' => '',
-            ],
+            'id' => 'serp_api_key',
+            'label' => 'Serp API key',
+            'desc' => 'Login to seranking and get api key from <a href="https://online.seranking.com/admin.user.settings.api.html
+" target="_blank">https://online.seranking.com/admin.user.settings.api.html</a>',
         ]);
 
         // creates a text field
