@@ -37,9 +37,22 @@ class class_serp_api
         return $this->send($url);
     }
 
+    public function getDomain()
+    {
+        $host = $_SERVER['HTTP_HOST'];
+        $a = explode('.', $host);
+        if (count($a) >= 4) {
+            preg_match("/[^\.\/]+\.[^\.\/]+\.[^\.\/]+$/", $host, $matches);
+        } else {
+            preg_match("/[^\.\/]+\.[^\.\/]+$/", $host, $matches);
+        }
+        return $matches[0];
+
+    }
+
     public function getSiteId($sites)
     {
-        $current_site = $_SERVER['HTTP_HOST'];
+        $current_site = $this->getDomain();
         if ($sites) {
             foreach ($sites as $site) {
                 if (preg_match('/' . $current_site . '/i', $site['name']) || $current_site == $site['name'] || 'http://' . $current_site == $site['name'] || 'https://' . $current_site == $site['name']) {
