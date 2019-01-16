@@ -41,6 +41,7 @@ class class_serp_api
     {
         $host = $_SERVER['HTTP_HOST'];
         $a = explode('.', $host);
+        $matches = array();
         if (count($a) >= 4) {
             preg_match("/[^\.\/]+\.[^\.\/]+\.[^\.\/]+$/", $host, $matches);
         } else {
